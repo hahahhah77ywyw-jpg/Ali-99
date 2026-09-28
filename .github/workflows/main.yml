@@ -4,6 +4,9 @@ on:
   push:
     branches: [ "main" ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,7 +15,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # بناء الهيكل البرمجي للتطبيق المقاوم للانهيار والحظر
       - name: Generate Custom WhatsApp App Files
         run: |
           mkdir -p app/src/main/java/com/ultimate/whatsapp/broadcaster
@@ -22,7 +24,7 @@ jobs:
           cat << 'EOF' > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+              dependencies { classpath 'com.android.tools.build:gradle:8.4.2' }
           }
           allprojects {
               repositories { google(); mavenCentral() }
@@ -37,7 +39,7 @@ jobs:
               compileSdk 34
               defaultConfig {
                   applicationId "com.ultimate.whatsapp.broadcaster"
-                  minSdk 21
+                  minSdk 24
                   targetSdk 34
                   versionCode 1
                   versionName "1.0.0"
@@ -89,9 +91,7 @@ jobs:
                   super.onCreate(savedInstanceState);
                   setContentView(R.layout.activity_main);
                   
-                  // معالج الأخطاء العالمي لمنع التطبيق من الانهيار تماماً تحت أي ظرف
                   Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
-                      // إعادة تشغيل الجلسة تلقائياً وتفادي الإغلاق المفاجئ
                       Intent intent = new Intent(MainActivity.this, MainActivity.class);
                       startActivity(intent);
                       System.exit(1);
@@ -102,7 +102,6 @@ jobs:
                   progressText = findViewById(R.id.progressText);
                   Button btnStartBroadcast = findViewById(R.id.btnStartBroadcast);
 
-                  // قاعدة بيانات الجلسة المستمرة لحفظ تقدمك حتى بعد حظر الرقم واسترجاعه لمرات عديدة
                   sessionDatabase = getSharedPreferences("SecureWhatsAppSession", Context.MODE_PRIVATE);
                   currentGroupIndex = sessionDatabase.getInt("savedGroupIndex", 0);
 
@@ -128,17 +127,14 @@ jobs:
                   try {
                       String groupUrl = groupsList.get(currentGroupIndex);
                       Intent intent = new Intent(Intent.ACTION_VIEW);
-                      // تحويل وتمرير النص للمجموعة المحددة يدرياً وآلياً
                       String encodedMsg = URLEncoder.encode(messageInput.getText().toString(), "UTF-8");
                       intent.setData(Uri.parse(groupUrl + "?text=" + encodedMsg));
                       startActivity(intent);
                       
                       currentGroupIndex++;
-                      // حفظ مؤشر الجلسة فوراً لضمان عدم ضياع الترتيب عند فك الحظر
                       sessionDatabase.edit().putInt("savedGroupIndex", currentGroupIndex).apply();
                       progressText.setText("المجموعة الحالية: " + currentGroupIndex + " من " + groupsList.size());
                   } catch (Exception e) {
-                      // في حال حدوث أي خطأ برمي، يتخطى المجموعة المتسببة في المشكلة ولا ينهار التطبيق
                       currentGroupIndex++;
                       broadcastToNextGroup();
                   }
@@ -168,13 +164,13 @@ jobs:
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: '17'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.5'
+          gradle-version: '8.7'
 
       - name: Build APK
         run: gradle :app:assembleDebug --no-daemon
